@@ -230,12 +230,16 @@
             qRaw.split(/(?=Câu\s+\d+)/g).filter(b => b.trim()).forEach(b => {
                 const id = (b.match(/Câu\s+(\d+)/i) || [])[1];
                 const key = (b.match(/\[Key:\s*(.*?)\]/i) || [])[1] || "";
+                
                 let type = 'mcq';
                 if(b.toLowerCase().includes("[đúng/sai]")) type = 'tf';
                 else if(b.toLowerCase().includes("[kéo thả]")) type = 'drag';
                 else if(b.toLowerCase().includes("[điền từ]")) type = 'fill';
+                else if(b.toLowerCase().includes("[chọn nhiều]")) type = 'multi'; // THÊM NHẬN DIỆN CÂU HỎI CHỌN NHIỀU
+
                 let qObj = { id, type, key, raw: b.replace(/\[Key:.*?\]/i, "").trim() };
-                if(type==='mcq') qObj.opts = b.match(/[A-D]\.\s.*/g) || [];
+                
+                if(type==='mcq' || type==='multi') qObj.opts = b.match(/[A-D]\.\s.*/g) || [];
                 if(type==='tf') {
                     qObj.rows = qObj.raw.split('\n').filter(l => l.includes('-') || l.match(/^\d+\./));
                     if(qObj.rows.length === 0) qObj.rows = [qObj.raw.split('\n').slice(1).join(' ')];
@@ -261,12 +265,22 @@
             const cls = showReview ? (check(q) ? 'correct' : 'incorrect') : '';
             h += `<div class="q-block ${cls}" id="q-${q.id}"><span class="q-num">CÂU ${q.id}</span>`;
             
-            if(q.type === 'mcq') {
-                let qText = q.raw.split(/[A-D]\.\s/)[0].replace(/Câu\s+\d+/i, "").trim();
+            if(q.type === 'mcq' || q.type === 'multi') { // SỬA LOGIC RENDER CHO CẢ MCQ VÀ MULTI
+                let qText = q.raw.split(/[A-D]\.\s/)[0].replace(/Câu\s+\d+/i, "").replace(/\[Chọn nhiều\]/i, "").trim();
                 h += `<p style="margin-bottom:12px; font-weight:500; white-space:pre-line;">${qText}</p>`;
+                if (q.type === 'multi') {
+                    h += `<p style="color:var(--accent); font-size:13px; font-weight:bold; margin-bottom:10px;">(Chọn nhiều đáp án)</p>`;
+                }
+                
                 q.opts.forEach(o => { 
                     const c = o.trim().charAt(0); 
-                    h += `<div class="opt ${userAnswers[q.id]===c?'selected':''}" onclick="setAns('${q.id}','${c}')">${o}</div>`; 
+                    let isSelected = false;
+                    if (q.type === 'mcq') {
+                        isSelected = userAnswers[q.id] === c;
+                    } else {
+                        isSelected = (userAnswers[q.id] || []).includes(c); // Checkbox logic
+                    }
+                    h += `<div class="opt ${isSelected ? 'selected' : ''}" onclick="setAns('${q.id}','${c}', '${q.type}')">${o}</div>`; 
                 });
             } else if(q.type === 'tf') {
                 q.rows.forEach((r, ri) => {
@@ -287,8 +301,8 @@
             } else if(q.type === 'fill') {
                 let qTextFill = q.raw.replace(/\[Điền từ\]/i, "").replace(/Câu\s+\d+/i, "").trim();
                 h += `<p style="margin-bottom:8px; white-space:pre-line;">${qTextFill}</p>
-                      <input type="text" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;" 
-                      oninput="saveInput('${q.id}', this.value)" value="${userAnswers[q.id] || ''}">`;
+                      <input type="text" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;"
+oninput="saveInput('${q.id}', this.value)" value="${userAnswers[q.id] || ''}">`;
             }
             if(showReview) h += `<div class="feedback-key">Đáp án: ${q.key}</div>`;
             h += `</div>`;
@@ -297,7 +311,22 @@
     }
 
     function saveInput(id, val) { if(!isLocked) userAnswers[id] = val; }
-    function setAns(id, v) { if(!isLocked) { userAnswers[id]=v; render(); } }
+    
+    // NÂNG CẤP SETANS CHO MULTI
+    function setAns(id, v, type = 'mcq') { 
+        if(!isLocked) { 
+            if (type === 'multi') {
+                if (!userAnswers[id]) userAnswers[id] = [];
+                const idx = userAnswers[id].indexOf(v);
+                if (idx > -1) userAnswers[id].splice(idx, 1); // Đã chọn thì bỏ chọn
+                else userAnswers[id].push(v); // Chưa chọn thì thêm vào mảng
+            } else {
+                userAnswers[id]=v; 
+            }
+            render(); 
+        } 
+    }
+    
     function setTF(id, ri, v) { if(!isLocked) { if(!userAnswers[id]) userAnswers[id]={}; userAnswers[id][ri]= (userAnswers[id][ri]===v?null:v); render(); } }
     function drop(ev, qid, idx) { ev.preventDefault(); const [w, sid] = ev.dataTransfer.getData("text").split('|'); if(sid !== qid || isLocked) return; if(!userAnswers[qid]) userAnswers[qid]={}; userAnswers[qid][idx]=w; render(); }
     function clearD(qid, idx) { if(!isLocked && userAnswers[qid]) { delete userAnswers[qid][idx]; render(); } }
@@ -306,10 +335,17 @@
     function startClock() { clock = setInterval(() => { if(mainSecs > 0 && !isLocked) { mainSecs--; if(currentPart===0) p0Secs++; else p1Secs++; document.getElementById('main-countdown').innerText = fmt(mainSecs); document.getElementById('time-0').innerText = fmt(p0Secs); if(document.getElementById('time-1')) document.getElementById('time-1').innerText = fmt(p1Secs); } }, 1000); }
     function fmt(s) { return Math.floor(s/60).toString().padStart(2,'0') + ":" + (s%60).toString().padStart(2,'0'); }
 
+    // SỬA LOGIC CHECK ĐÁP ÁN
     function check(q) {
         if(!userAnswers[q.id] || !q.key) return false;
         const u = userAnswers[q.id], k = q.key.toUpperCase().trim();
+        
         if(q.type==='mcq') return u === k;
+        if(q.type==='multi') {
+            const keyArr = k.split(',').map(s=>s.trim()).sort().join(',');
+            const userArr = (Array.isArray(u) ? u : []).sort().join(',');
+            return keyArr === userArr;
+        }
         if(q.type==='fill') return u.toString().trim().toUpperCase() === k;
         if(q.type==='tf' || q.type==='drag') {
             const ks = k.split(',').map(s=>s.trim().toUpperCase());
