@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>TSA Library - Pro Đúng/Sai</title>
+    <title>TSA Library - Chia Sẻ Đề Thi</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root { --primary: #002d5e; --accent: #d32f2f; --bg: #f0f2f5; --success: #22c55e; --blue: #2563eb; --wrong: #ef4444; }
@@ -10,99 +10,257 @@
         html, body { height: 100vh; background: var(--bg); overflow: hidden; }
         .hidden { display: none !important; }
 
+        /* --- CREATOR & LIBRARY --- */
         #creator-mode { padding: 20px; overflow-y: auto; height: 100vh; display: flex; flex-direction: column; gap: 20px; }
         .container-input, .library-box { max-width: 1100px; width: 100%; margin: 0 auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-        textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; resize: vertical; margin-top: 5px; min-height: 150px; }
-        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; }
+        .part-box { border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; background: #f8fafc; }
+        textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; resize: vertical; margin-top: 5px; min-height: 120px; }
+        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; font-size: 15px; }
 
+        .lib-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .lib-btns { display: flex; gap: 10px; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; background: #f1f5f9; padding: 12px; font-size: 14px; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+        .btn-sm { padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; border: none; margin-right: 5px; color: white; }
+        .btn-load { background: var(--success); }
+        .btn-del { background: var(--accent); }
+
+        /* --- EXAM MODE --- */
         header { background: #fff; height: 60px; display: flex; align-items: center; padding: 0 25px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); justify-content: space-between; }
+        .timer-group { display: flex; gap: 10px; align-items: center; }
+        .timer-box { padding: 5px 10px; border-radius: 5px; background: #f1f5f9; font-size: 12px; font-weight: bold; border: 1px solid #ddd; display: none; }
+        .timer-box.active { background: #fee2e2; border-color: var(--accent); color: var(--accent); }
         #main-countdown { font-size: 18px; color: var(--accent); font-weight: 900; padding: 5px 15px; border: 2px solid var(--accent); border-radius: 8px; }
 
         .main-container { display: flex; height: calc(100vh - 130px); }
         .reading-pane { width: 50%; background: #fff; padding: 30px; overflow-y: auto; border-right: 2px solid #dee2e6; line-height: 1.8; }
-        .questions-pane { width: 50%; background: #f8fafc; padding: 25px; overflow-y: auto; }
+        .questions-pane { width: 50%; background: #f8fafc; padding: 25px; overflow-y: auto; scroll-behavior: smooth; }
 
-        .q-block { background: #fff; padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #e2e8f0; }
+        .q-block { background: #fff; padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #e2e8f0; position: relative; }
         .q-num { font-weight: 900; color: var(--primary); border-bottom: 2px solid var(--accent); margin-bottom: 10px; display: inline-block; }
-        
-        /* Style cho từng dòng Đúng/Sai */
-        .tf-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-radius: 8px; margin-bottom: 5px; transition: 0.3s; background: #fdfdfd; border: 1px solid #eee; }
-        .tf-row.review-correct { border-left: 5px solid var(--success); background: #f0fdf4; }
-        .tf-row.review-wrong { border-left: 5px solid var(--wrong); background: #fef2f2; }
-        .tf-text { flex: 1; padding-right: 15px; font-size: 14px; }
-        .tf-btns { display: flex; gap: 5px; }
-        .tf-btn { width: 45px; height: 35px; border: 1px solid #ddd; cursor: pointer; font-weight: bold; background: white; border-radius: 4px; }
-        .tf-btn.active-t { background: var(--success); color: white; border-color: var(--success); }
-        .tf-btn.active-f { background: var(--accent); color: white; border-color: var(--accent); }
+        .q-block.correct { border: 2px solid var(--success); background: #f0fdf4; }
+        .q-block.incorrect { border: 2px solid var(--wrong); background: #fef2f2; }
+        .feedback-key { margin-top: 10px; padding: 10px; background: #e0f2fe; color: var(--blue); font-weight: bold; border-radius: 5px; }
 
-        .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-accent { background: var(--accent); color: white; }
+        .opt { display: flex; align-items: center; padding: 10px; border: 1px solid #edf2f7; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
+        .opt.selected { background: #eff6ff; border-color: var(--blue); color: var(--blue); font-weight: bold; }
+        
+        .tf-btn { width: 40px; height: 32px; border: 1px solid #ddd; cursor: pointer; font-weight: bold; background: white; border-radius: 4px; }
+        .tf-btn.active-t { background: var(--success); color: white; border-color: var(--success); }
+        .tf-btn.active-s { background: var(--accent); color: white; border-color: var(--accent); }
+
+        .drag-pool { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; padding: 10px; background: #eee; border-radius: 8px; min-height: 44px; }
+        .drag-item { padding: 6px 12px; background: #fff; border: 1px solid var(--primary); border-radius: 4px; cursor: grab; font-weight: 600; }
+        .drop-zone { display: inline-block; min-width: 80px; border-bottom: 2px dashed var(--accent); text-align: center; color: var(--accent); font-weight: bold; cursor: pointer; margin: 0 5px; }
+
+        footer { height: 70px; background: #fff; border-top: 1px solid #ddd; display: flex; align-items: center; justify-content: space-between; padding: 0 30px; }
+        .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .btn-nav { background: var(--primary); color: white; }
+        .btn-save { background: #6366f1; color: white; }
+        .btn-export { background: #f59e0b; color: white; }
+        .btn-import { background: #10b981; color: white; }
+        .btn-submit { background: var(--accent); color: white; }
+
+        #result-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .result-card { background: #fff; padding: 30px; border-radius: 15px; text-align: center; width: 400px; }
     </style>
 </head>
 <body>
 
 <div id="creator-mode">
-    <div class="container-input">
-        <input type="text" id="exam-name" placeholder="Tên đề thi...">
-        <div class="grid-layout">
-            <div style="background:#f8fafc; padding:15px; border-radius:10px;">
-                <strong>NGỮ LIỆU 1</strong>
-                <textarea id="text-0" placeholder="Nội dung bài đọc..."></textarea>
-                <textarea id="raw-0" placeholder="Câu 1 [Đúng/Sai]: Nội dung...&#10;- Ý 1&#10;- Ý 2&#10;[Key: T, F]"></textarea>
-            </div>
-            <div style="background:#f8fafc; padding:15px; border-radius:10px;">
-                <strong>NGỮ LIỆU 2</strong>
-                <textarea id="text-1" placeholder="Nội dung bài đọc..."></textarea>
-                <textarea id="raw-1" placeholder="Câu hỏi khác..."></textarea>
+    <div class="library-box">
+        <div class="lib-header">
+            <h3><i class="fa-solid fa-book"></i> THƯ VIỆN ĐỀ THI</h3>
+            <div class="lib-btns">
+                <button class="btn btn-export" onclick="exportLibrary()"><i class="fa-solid fa-file-export"></i> XUẤT FILE ĐỀ</button>
+                <button class="btn btn-import" onclick="document.getElementById('importFile').click()"><i class="fa-solid fa-file-import"></i> NHẬP ĐỀ TỪ FILE</button>
+                <input type="file" id="importFile" class="hidden" accept=".json" onchange="importLibrary(event)">
             </div>
         </div>
-        <button class="btn btn-primary" style="width:100%" onclick="buildExam()">BẮT ĐẦU THI</button>
+        <table id="lib-table">
+            <thead>
+                <tr><th>Tên đề thi</th><th>Ngày lưu</th><th>Thao tác</th></tr>
+            </thead>
+            <tbody id="lib-body"></tbody>
+        </table>
+    </div>
+
+    <div class="container-input">
+        <h3><i class="fa-solid fa-pen-to-square"></i> THÊM / CHỈNH SỬA ĐỀ MỚI</h3>
+        <input type="text" id="exam-name" placeholder="Nhập tên đề thi...">
+        <div class="grid-layout">
+            <div class="part-box">
+                <strong>BÀI ĐỌC 1</strong>
+                <textarea id="text-0" placeholder="Nội dung bài đọc..."></textarea>
+                <textarea id="raw-0" placeholder="Câu hỏi & [Key: ...]"></textarea>
+            </div>
+            <div class="part-box">
+                <strong>BÀI ĐỌC 2</strong>
+                <textarea id="text-1" placeholder="Nội dung bài đọc..."></textarea>
+                <textarea id="raw-1" placeholder="Câu hỏi & [Key: ...]"></textarea>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-save" onclick="saveNewExam()"><i class="fa-solid fa-floppy-disk"></i> LƯU VÀO THƯ VIỆN</button>
+            <button class="btn btn-nav" style="flex:1; justify-content:center;" onclick="buildExam()"><i class="fa-solid fa-play"></i> BẮT ĐẦU THI ĐỀ NÀY</button>
+        </div>
     </div>
 </div>
 
 <div id="exam-mode" class="hidden">
-    <header><div id="main-countdown">30:00</div></header>
+    <header>
+        <div class="logo">TSA PRO</div>
+        <div class="timer-group">
+            <div class="timer-box" id="tbox-0">BÀI 1: <span id="time-0">00:00</span></div>
+            <div class="timer-box" id="tbox-1">BÀI 2: <span id="time-1">00:00</span></div>
+            <div id="main-countdown">30:00</div>
+        </div>
+    </header>
     <div class="main-container">
         <div class="reading-pane" id="readingPane"></div>
         <div class="questions-pane" id="questionsPane"></div>
     </div>
     <footer>
-        <button class="btn btn-primary" onclick="switchPart(0)">BÀI 1</button>
-        <button class="btn btn-primary" onclick="switchPart(1)">BÀI 2</button>
-        <button class="btn btn-accent" onclick="submitExam()">NỘP BÀI</button>
+        <div style="display:flex; gap:10px">
+            <button class="btn btn-nav" onclick="switchPart(0)">BÀI ĐỌC 1</button>
+            <button class="btn btn-nav hidden" id="btn-p1" onclick="switchPart(1)">BÀI ĐỌC 2</button>
+        </div>
+        <button class="btn btn-submit" id="submit-btn" onclick="submitExam()">NỘP BÀI</button>
     </footer>
 </div>
 
+<div id="result-overlay">
+    <div class="result-card">
+        <h2>KẾT QUẢ</h2>
+        <h1 id="final-score" style="font-size: 50px; color: var(--blue);">0.0</h1>
+        <p id="stats-detail" style="margin-bottom: 20px;"></p>
+        <button class="btn btn-nav" style="width:100%; margin-bottom:10px; justify-content:center;" onclick="closeReview()">XEM ĐÁP ÁN CHI TIẾT</button>
+        <button class="btn" style="width:100%; justify-content:center;" onclick="location.reload()">VỀ THƯ VIỆN</button>
+    </div>
+</div>
+
 <script>
-    let EXAM_DATA = [], userAnswers = {}, currentPart = 0, isLocked = false, showReview = false, mainSecs = 1800;
+    let EXAM_DATA = [];
+    let userAnswers = {};
+    let currentPart = 0;
+    let isLocked = false, showReview = false;
+    let mainSecs = 1800, p0Secs = 0, p1Secs = 0, clock;
+
+    window.onload = renderLibrary;
+
+    function getLibrary() { return JSON.parse(localStorage.getItem('tsa_library') || '[]'); }
+
+    function saveNewExam() {
+        const name = document.getElementById('exam-name').value;
+        if(!name) return alert("Vui lòng nhập tên đề!");
+        const newEx = {
+            id: Date.now(), name, date: new Date().toLocaleString('vi-VN'),
+            t0: document.getElementById('text-0').value, r0: document.getElementById('raw-0').value,
+            t1: document.getElementById('text-1').value, r1: document.getElementById('raw-1').value
+        };
+        let lib = getLibrary(); lib.push(newEx);
+        localStorage.setItem('tsa_library', JSON.stringify(lib));
+        renderLibrary(); alert("Đã lưu!");
+    }
+
+    function renderLibrary() {
+        const lib = getLibrary();
+        const tbody = document.getElementById('lib-body');
+        tbody.innerHTML = lib.length ? '' : '<tr><td colspan="3">Chưa có đề nào.</td></tr>';
+        lib.forEach(ex => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><strong>${ex.name}</strong></td><td>${ex.date}</td><td><button class="btn-sm btn-load" onclick="loadExam(${ex.id})">Tải</button><button class="btn-sm btn-del" onclick="deleteExam(${ex.id})">Xóa</button></td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function exportLibrary() {
+        const lib = getLibrary();
+        if(!lib.length) return alert("Thư viện trống, không có gì để xuất!");
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(lib));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "TSA_Exam_Library.json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    function importLibrary(event) {
+        const file = event.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if(Array.isArray(importedData)) {
+                    let currentLib = getLibrary();
+                    const merged = [...currentLib, ...importedData.filter(item => !currentLib.find(c => c.id === item.id))];
+                    localStorage.setItem('tsa_library', JSON.stringify(merged));
+                    renderLibrary();
+                    alert("Đã nhập đề thành công!");
+                }
+            } catch(err) { alert("File không hợp lệ!"); }
+        };
+        reader.readAsText(file);
+    }
+
+    function loadExam(id) {
+        const ex = getLibrary().find(x => x.id === id);
+        if(!ex) return;
+        document.getElementById('exam-name').value = ex.name;
+        document.getElementById('text-0').value = ex.t0; document.getElementById('raw-0').value = ex.r0;
+        document.getElementById('text-1').value = ex.t1; document.getElementById('raw-1').value = ex.r1;
+        alert("Đã tải: " + ex.name);
+    }
+
+    function deleteExam(id) { if(confirm("Xóa đề này?")) { let lib = getLibrary().filter(x => x.id !== id); localStorage.setItem('tsa_library', JSON.stringify(lib)); renderLibrary(); } }
 
     function buildExam() {
         EXAM_DATA = [];
         for(let i=0; i<2; i++) {
             const t = document.getElementById(`text-${i}`).value;
-            const r = document.getElementById(`raw-${i}`).value;
+            const qRaw = document.getElementById(`raw-${i}`).value;
             let qs = [];
-            r.split(/(?=Câu\s+\d+)/g).filter(b => b.trim()).forEach(b => {
+            qRaw.split(/(?=Câu\s+\d+)/g).filter(b => b.trim()).forEach(b => {
                 const id = (b.match(/Câu\s+(\d+)/i) || [])[1];
                 const key = (b.match(/\[Key:\s*(.*?)\]/i) || [])[1] || "";
-                let type = b.toLowerCase().includes("[đúng/sai]") ? 'tf' : 'mcq';
                 
-                let qObj = { id, type, key: key.toUpperCase(), raw: b.replace(/\[Key:.*?\]/i, "").trim() };
-                if(type === 'tf') {
-                    // Tách các dòng bắt đầu bằng dấu "-"
-                    qObj.rows = qObj.raw.split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-/, "").trim());
-                    // Lấy tiêu đề câu hỏi (bỏ phần [Đúng/Sai] và các dòng liệt kê)
-                    qObj.title = qObj.raw.split('\n')[0].replace(/Câu\s+\d+\s*\[Đúng\/Sai\]:?/i, "").trim();
+                let type = 'mcq';
+                if(b.toLowerCase().includes("[đúng/sai]")) type = 'tf';
+                else if(b.toLowerCase().includes("[kéo thả]")) type = 'drag';
+                else if(b.toLowerCase().includes("[điền từ]")) type = 'fill';
+
+                let qObj = { id, type, key, raw: b.replace(/\[Key:.*?\]/i, "").trim() };
+                
+                if(type==='mcq') qObj.opts = b.match(/[A-D]\.\s.*/g) || [];
+                if(type==='tf') {
+                    // FIX MỚI: Tách văn bản dựa trên dòng mới (\n)
+                    let lines = qObj.raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                    
+                    if (lines.length > 1) {
+                        qObj.qTitle = lines[0]; // Câu dẫn ("Dựa trên nội dung văn bản...")
+                        // Các dòng tiếp theo là các ý, xóa dấu - hoặc số 1. (nếu có) để lấy nội dung sạch
+                        qObj.rows = lines.slice(1).map(l => l.replace(/^[-+*]\s*|^\d+\.\s*/, '').trim());
+                    } else {
+                        qObj.qTitle = "";
+                        qObj.rows = lines;
+                    }
                 }
+                if(type==='drag') qObj.pool = key.split(',').map(s=>s.trim());
                 if(id) qs.push(qObj);
             });
-            EXAM_DATA.push({ text: t, questions: qs });
+            if(t || qs.length) EXAM_DATA.push({ text: t, questions: qs });
         }
+        if(!EXAM_DATA.length) return alert("Dữ liệu trống!");
         document.getElementById('creator-mode').classList.add('hidden');
         document.getElementById('exam-mode').classList.remove('hidden');
-        render();
+        document.getElementById('tbox-0').style.display = 'block';
+        if(EXAM_DATA[1]) { document.getElementById('tbox-1').style.display = 'block'; document.getElementById('btn-p1').classList.remove('hidden'); }
+        render(); startClock();
     }
 
     function render() {
@@ -110,52 +268,86 @@
         document.getElementById('readingPane').innerHTML = `<div style="white-space:pre-line">${data.text}</div>`;
         let h = '';
         data.questions.forEach(q => {
-            h += `<div class="q-block"><span class="q-num">CÂU ${q.id}</span>`;
+            const cls = showReview ? (check(q) ? 'correct' : 'incorrect') : '';
+            h += `<div class="q-block ${cls}" id="q-${q.id}"><span class="q-num">CÂU ${q.id}</span>`;
             
-            if(q.type === 'tf') {
-                h += `<p style="margin-bottom:10px; font-weight:600;">${q.title}</p>`;
-                const keys = q.key.split(',').map(s => s.trim());
-                
-                q.rows.forEach((row, ri) => {
-                    const userVal = (userAnswers[q.id] || {})[ri];
-                    let rowClass = '';
-                    if(showReview) {
-                        rowClass = (userVal === keys[ri]) ? 'review-correct' : 'review-wrong';
-                    }
-
-                    h += `
-                    <div class="tf-row ${rowClass}">
-                        <div class="tf-text">${row}</div>
-                        <div class="tf-btns">
-                            <button class="tf-btn ${userVal==='T'?'active-t':''}" onclick="setTF('${q.id}',${ri},'T')">Đ</button>
-                            <button class="tf-btn ${userVal==='F'?'active-f':''}" onclick="setTF('${q.id}',${ri},'S')">S</button>
-                        </div>
-                    </div>`;
+            if(q.type === 'mcq') {
+                let qText = q.raw.split(/[A-D]\.\s/)[0].replace(/Câu\s+\d+/i, "").trim();
+                h += `<p style="margin-bottom:12px; font-weight:500; white-space:pre-line;">${qText}</p>`;
+                q.opts.forEach(o => { 
+                    const c = o.trim().charAt(0); 
+                    h += `<div class="opt ${userAnswers[q.id]===c?'selected':''}" onclick="setAns('${q.id}','${c}')">${o}</div>`; 
                 });
+            } else if(q.type === 'tf') {
+                // Hiển thị câu dẫn của dạng Đúng/Sai (nếu có)
+                let textTitle = q.qTitle ? q.qTitle.replace(/Câu\s+\d+\s*\[Đúng\/Sai\]:?/i, "").trim() : "";
+                if(textTitle) h += `<p style="margin-bottom:12px; font-weight:500;">${textTitle}</p>`;
+
+                q.rows.forEach((r, ri) => {
+                    const v = (userAnswers[q.id]||{})[ri];
+                    h += `<div style="display:flex; justify-content:space-between; align-items:center; margin:8px 0; padding:10px; background:#fdfdfd; border:1px solid #edf2f7; border-radius:8px;">
+                            <span style="flex:1; padding-right:15px; line-height:1.5;">${r}</span>
+                            <div style="display:flex; gap:6px;">
+                                <button class="tf-btn ${v==='T'?'active-t':''}" onclick="setTF('${q.id}',${ri},'T')">Đ</button>
+                                <button class="tf-btn ${v==='F'?'active-s':''}" onclick="setTF('${q.id}',${ri},'F')">S</button>
+                            </div>
+                          </div>`;
+                });
+            } else if(q.type === 'drag') {
+                const used = Object.values(userAnswers[q.id]||{});
+                const pool = q.pool.filter(w => !used.includes(w));
+                h += `<div class="drag-pool">${pool.map(w => `<div class="drag-item" draggable="true" ondragstart="event.dataTransfer.setData('text','${w}|${q.id}')">${w}</div>`).join('')}</div>`;
+                let idx = 0;
+                let txt = q.raw.replace(/\.{3,}/g, () => {
+                    const val = (userAnswers[q.id]||{})[idx] || "...";
+                    const s = `<span class="drop-zone" ondragover="event.preventDefault()" ondrop="drop(event,'${q.id}',${idx})" onclick="clearD('${q.id}',${idx})">${val}</span>`;
+                    idx++; return s;
+                });
+                h += `<p>${txt}</p>`;
+            } else if(q.type === 'fill') {
+                let qTextFill = q.raw.replace(/\[Điền từ\]/i, "").replace(/Câu\s+\d+/i, "").trim();
+                h += `<p style="margin-bottom:8px; white-space:pre-line;">${qTextFill}</p>
+                      <input type="text" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;"
+oninput="saveInput('${q.id}', this.value)" value="${userAnswers[q.id] || ''}">`;
             }
-            if(showReview) h += `<div style="margin-top:10px; color:var(--blue); font-weight:bold;">Đáp án: ${q.key}</div>`;
+            if(showReview) h += `<div class="feedback-key">Đáp án: ${q.key}</div>`;
             h += `</div>`;
         });
         document.getElementById('questionsPane').innerHTML = h;
     }
 
-    function setTF(qid, ri, val) {
-        if(isLocked) return;
-        if(!userAnswers[qid]) userAnswers[qid] = {};
-        // Nếu nhấn lại nút cũ thì bỏ chọn (Toggle)
-        userAnswers[qid][ri] = (userAnswers[qid][ri] === val) ? null : val;
-        render();
+    function saveInput(id, val) { if(!isLocked) userAnswers[id] = val; }
+    function setAns(id, v) { if(!isLocked) { userAnswers[id]=v; render(); } }
+    function setTF(id, ri, v) { if(!isLocked) { if(!userAnswers[id]) userAnswers[id]={}; userAnswers[id][ri]= (userAnswers[id][ri]===v?null:v); render(); } }
+    function drop(ev, qid, idx) { ev.preventDefault(); const [w, sid] = ev.dataTransfer.getData("text").split('|'); if(sid !== qid || isLocked) return; if(!userAnswers[qid]) userAnswers[qid]={}; userAnswers[qid][idx]=w; render(); }
+    function clearD(qid, idx) { if(!isLocked && userAnswers[qid]) { delete userAnswers[qid][idx]; render(); } }
+    function switchPart(i) { currentPart = i; document.getElementById('tbox-0').classList.toggle('active', i===0); document.getElementById('tbox-1').classList.toggle('active', i===1); render(); }
+
+    function startClock() { clock = setInterval(() => { if(mainSecs > 0 && !isLocked) { mainSecs--; if(currentPart===0) p0Secs++; else p1Secs++; document.getElementById('main-countdown').innerText = fmt(mainSecs); document.getElementById('time-0').innerText = fmt(p0Secs); if(document.getElementById('time-1')) document.getElementById('time-1').innerText = fmt(p1Secs); } }, 1000); }
+    function fmt(s) { return Math.floor(s/60).toString().padStart(2,'0') + ":" + (s%60).toString().padStart(2,'0'); }
+
+    function check(q) {
+        if(!userAnswers[q.id] || !q.key) return false;
+        const u = userAnswers[q.id], k = q.key.toUpperCase().trim();
+        if(q.type==='mcq') return u === k;
+        if(q.type==='fill') return u.toString().trim().toUpperCase() === k;
+        if(q.type==='tf' || q.type==='drag') {
+            const ks = k.split(',').map(s=>s.trim().toUpperCase());
+            return ks.every((v, i) => (u[i]||"").toString().trim().toUpperCase() === v);
+        }
+        return false;
     }
 
-    function switchPart(i) { currentPart = i; render(); }
-    
     function submitExam() {
-        if(confirm("Xóa nộp bài?")) {
-            isLocked = true;
-            showReview = true;
-            render();
-        }
+        if(!confirm("Nộp bài?")) return;
+        isLocked = true; clearInterval(clock);
+        let s = 0, t = 0;
+        EXAM_DATA.forEach(p => p.questions.forEach(q => { if(q.key){ t++; if(check(q)) s++; } }));
+        document.getElementById('final-score').innerText = t>0 ? ((s/t)*10).toFixed(1) : "0.0";
+        document.getElementById('stats-detail').innerText = `Đúng ${s}/${t} câu.`;
+        document.getElementById('result-overlay').style.display='flex';
     }
+    function closeReview() { document.getElementById('result-overlay').style.display='none'; showReview=true; render(); }
 </script>
 </body>
 </html>
