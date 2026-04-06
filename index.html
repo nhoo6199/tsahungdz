@@ -47,6 +47,7 @@
 
         .opt { display: flex; align-items: center; padding: 10px; border: 1px solid #edf2f7; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
         .opt.selected { background: #eff6ff; border-color: var(--blue); color: var(--blue); font-weight: bold; }
+        .opt.selected-multi { background: #e0e7ff; border-color: #6366f1; color: #4f46e5; font-weight: bold; border-width: 2px; }
         
         .tf-btn { width: 40px; height: 32px; border: 1px solid #ddd; cursor: pointer; font-weight: bold; background: white; border-radius: 4px; }
         .tf-btn.active-t { background: var(--success); color: white; border-color: var(--success); }
@@ -233,24 +234,25 @@
                 if(b.toLowerCase().includes("[đúng/sai]")) type = 'tf';
                 else if(b.toLowerCase().includes("[kéo thả]")) type = 'drag';
                 else if(b.toLowerCase().includes("[điền từ]")) type = 'fill';
+                // THÊM LOGIC: Nhận diện riêng dạng câu hỏi Chọn Nhiều
+                else if(b.toLowerCase().includes("[chọn nhiều]")) type = 'mcq-multi';
 
                 let qObj = { id, type, key, raw: b.replace(/\[Key:.*?\]/i, "").trim() };
                 
-                if(type==='mcq') qObj.opts = b.match(/[A-D]\.\s.*/g) || [];
-                if(type==='tf') {
-                    // FIX MỚI: Tách văn bản dựa trên dòng mới (\n)
+                // Lấy đáp án A, B, C, D (dùng chung cho cả chọn 1 và chọn nhiều)
+                if(type === 'mcq' || type === 'mcq-multi') qObj.opts = b.match(/[A-D]\.\s.*/g) || [];
+                
+                if(type === 'tf') {
                     let lines = qObj.raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                    
                     if (lines.length > 1) {
-                        qObj.qTitle = lines[0]; // Câu dẫn ("Dựa trên nội dung văn bản...")
-                        // Các dòng tiếp theo là các ý, xóa dấu - hoặc số 1. (nếu có) để lấy nội dung sạch
+                        qObj.qTitle = lines[0]; 
                         qObj.rows = lines.slice(1).map(l => l.replace(/^[-+*]\s*|^\d+\.\s*/, '').trim());
                     } else {
                         qObj.qTitle = "";
                         qObj.rows = lines;
                     }
                 }
-                if(type==='drag') qObj.pool = key.split(',').map(s=>s.trim());
+                if(type === 'drag') qObj.pool = key.split(',').map(s=>s.trim());
                 if(id) qs.push(qObj);
             });
             if(t || qs.length) EXAM_DATA.push({ text: t, questions: qs });
@@ -271,15 +273,34 @@
             const cls = showReview ? (check(q) ? 'correct' : 'incorrect') : '';
             h += `<div class="q-block ${cls}" id="q-${q.id}"><span class="q-num">CÂU ${q.id}</span>`;
             
-            if(q.type === 'mcq') {
-                let qText = q.raw.split(/[A-D]\.\s/)[0].replace(/Câu\s+\d+/i, "").trim();
-                h += `<p style="margin-bottom:12px; font-weight:500; white-space:pre-line;">${qText}</p>`;
+            if(q.type === 'mcq' || q.type === 'mcq-multi') {
+                // Tách nội dung câu hỏi và làm sạch các tag [Trả lời 4 đáp án], [Chọn nhiều] để học sinh nhìn gọn gàng
+                let qText = q.raw.split(/[A-D]\.\s/)[0]
+                                 .replace(/Câu\s+\d+/i, "")
+                                 .replace(/\[Trả lời 4 đáp án\]/gi, "")
+                                 .replace(/\[Chọn nhiều\]/gi, "")
+                                 .trim();
+                
+                let subtext = q.type === 'mcq-multi' ? ' <span style="color:#6366f1; font-size:12px;">(Bạn có thể chọn nhiều đáp án)</span>' : '';
+                h += `<p style="margin-bottom:12px; font-weight:500; white-space:pre-line;">${qText}${subtext}</p>`;
+                
                 q.opts.forEach(o => { 
-                    const c = o.trim().charAt(0); 
-                    h += `<div class="opt ${userAnswers[q.id]===c?'selected':''}" onclick="setAns('${q.id}','${c}')">${o}</div>`; 
+                    const c = o.trim().charAt(0);
+                    let isSelected = false;
+                    let styleClass = '';
+                    
+                    // Xử lý hiển thị chọn 1 hoặc nhiều
+                    if (q.type === 'mcq') {
+                        isSelected = (userAnswers[q.id] === c);
+                        styleClass = isSelected ? 'selected' : '';
+                    } else if (q.type === 'mcq-multi') {
+                        isSelected = (userAnswers[q.id] && userAnswers[q.id].includes(c));
+                        styleClass = isSelected ? 'selected-multi' : '';
+                    }
+
+                    h += `<div class="opt ${styleClass}" onclick="setAns('${q.id}', '${c}', '${q.type}')">${o}</div>`; 
                 });
             } else if(q.type === 'tf') {
-                // Hiển thị câu dẫn của dạng Đúng/Sai (nếu có)
                 let textTitle = q.qTitle ? q.qTitle.replace(/Câu\s+\d+\s*\[Đúng\/Sai\]:?/i, "").trim() : "";
                 if(textTitle) h += `<p style="margin-bottom:12px; font-weight:500;">${textTitle}</p>`;
 
@@ -298,7 +319,7 @@
                 const pool = q.pool.filter(w => !used.includes(w));
                 h += `<div class="drag-pool">${pool.map(w => `<div class="drag-item" draggable="true" ondragstart="event.dataTransfer.setData('text','${w}|${q.id}')">${w}</div>`).join('')}</div>`;
                 let idx = 0;
-                let txt = q.raw.replace(/\.{3,}/g, () => {
+                let txt = q.raw.replace(/\[Kéo thả\].*?:?/i, "").replace(/Câu\s+\d+/i, "").replace(/\.{3,}/g, () => {
                     const val = (userAnswers[q.id]||{})[idx] || "...";
                     const s = `<span class="drop-zone" ondragover="event.preventDefault()" ondrop="drop(event,'${q.id}',${idx})" onclick="clearD('${q.id}',${idx})">${val}</span>`;
                     idx++; return s;
@@ -317,7 +338,26 @@ oninput="saveInput('${q.id}', this.value)" value="${userAnswers[q.id] || ''}">`;
     }
 
     function saveInput(id, val) { if(!isLocked) userAnswers[id] = val; }
-    function setAns(id, v) { if(!isLocked) { userAnswers[id]=v; render(); } }
+    
+    // CẬP NHẬT HÀM setAns: Xử lý dạng Chọn nhiều (Mảng) và Chọn 1 (Chuỗi)
+    function setAns(id, v, type = 'mcq') { 
+        if(isLocked) return;
+        if(type === 'mcq') {
+            userAnswers[id] = v; 
+        } else if (type === 'mcq-multi') {
+            if (!userAnswers[id]) userAnswers[id] = [];
+            // Nếu đã chọn rồi thì click vào sẽ bỏ chọn
+            if (userAnswers[id].includes(v)) {
+                userAnswers[id] = userAnswers[id].filter(x => x !== v);
+            } else {
+                // Chưa chọn thì push vào mảng
+                userAnswers[id].push(v);
+            }
+            userAnswers[id].sort(); // Sắp xếp lại để dễ chấm điểm (VD: A, B, C)
+        }
+        render(); 
+    }
+
     function setTF(id, ri, v) { if(!isLocked) { if(!userAnswers[id]) userAnswers[id]={}; userAnswers[id][ri]= (userAnswers[id][ri]===v?null:v); render(); } }
     function drop(ev, qid, idx) { ev.preventDefault(); const [w, sid] = ev.dataTransfer.getData("text").split('|'); if(sid !== qid || isLocked) return; if(!userAnswers[qid]) userAnswers[qid]={}; userAnswers[qid][idx]=w; render(); }
     function clearD(qid, idx) { if(!isLocked && userAnswers[qid]) { delete userAnswers[qid][idx]; render(); } }
@@ -326,12 +366,21 @@ oninput="saveInput('${q.id}', this.value)" value="${userAnswers[q.id] || ''}">`;
     function startClock() { clock = setInterval(() => { if(mainSecs > 0 && !isLocked) { mainSecs--; if(currentPart===0) p0Secs++; else p1Secs++; document.getElementById('main-countdown').innerText = fmt(mainSecs); document.getElementById('time-0').innerText = fmt(p0Secs); if(document.getElementById('time-1')) document.getElementById('time-1').innerText = fmt(p1Secs); } }, 1000); }
     function fmt(s) { return Math.floor(s/60).toString().padStart(2,'0') + ":" + (s%60).toString().padStart(2,'0'); }
 
+    // CẬP NHẬT HÀM CHẤM ĐIỂM
     function check(q) {
         if(!userAnswers[q.id] || !q.key) return false;
-        const u = userAnswers[q.id], k = q.key.toUpperCase().trim();
-        if(q.type==='mcq') return u === k;
-        if(q.type==='fill') return u.toString().trim().toUpperCase() === k;
-        if(q.type==='tf' || q.type==='drag') {
+        const u = userAnswers[q.id];
+        const k = q.key.toUpperCase().trim();
+        
+        if(q.type === 'mcq') return u === k;
+        if(q.type === 'mcq-multi') {
+            if(!Array.isArray(u)) return false;
+            // Xóa khoảng trắng, sắp xếp mảng đáp án gốc (VD: "B, A" thành "A,B")
+            const ks = k.split(',').map(s=>s.trim()).sort().join(',');
+            return u.join(',') === ks;
+        }
+        if(q.type === 'fill') return u.toString().trim().toUpperCase() === k;
+        if(q.type === 'tf' || q.type === 'drag') {
             const ks = k.split(',').map(s=>s.trim().toUpperCase());
             return ks.every((v, i) => (u[i]||"").toString().trim().toUpperCase() === v);
         }
